@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boa-z/vowifi-go/runtimehost/eventhost"
-	"github.com/boa-z/vowifi-go/runtimehost/voiceclient"
+	"github.com/Starktomy/vowifi-go/runtimehost/eventhost"
+	"github.com/Starktomy/vowifi-go/runtimehost/voiceclient"
 )
 
 func TestIMSUSSDTransportExecuteAndContinue(t *testing.T) {

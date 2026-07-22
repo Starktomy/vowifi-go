@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boa-z/vowifi-go/runtimehost/simtransport"
+	"github.com/Starktomy/vowifi-go/runtimehost/simtransport"
 )
 
 type Event interface{}

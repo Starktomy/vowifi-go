@@ -13,12 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boa-z/vowifi-go/engine/sim"
-	"github.com/boa-z/vowifi-go/engine/swu"
-	"github.com/boa-z/vowifi-go/runtimehost/carrier"
-	"github.com/boa-z/vowifi-go/runtimehost/identity"
-	"github.com/boa-z/vowifi-go/runtimehost/messaging"
-	"github.com/boa-z/vowifi-go/runtimehost/voiceclient"
+	"github.com/Starktomy/vowifi-go/engine/sim"
+	"github.com/Starktomy/vowifi-go/engine/swu"
+	"github.com/Starktomy/vowifi-go/runtimehost/carrier"
+	"github.com/Starktomy/vowifi-go/runtimehost/identity"
+	"github.com/Starktomy/vowifi-go/runtimehost/messaging"
+	"github.com/Starktomy/vowifi-go/runtimehost/voiceclient"
 )
 
 func TestWireIMSRegistrarUsesPreparedIdentity(t *testing.T) {

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boa-z/vowifi-go/runtimehost/carrier"
-	"github.com/boa-z/vowifi-go/runtimehost/simauth"
-	"github.com/boa-z/vowifi-go/runtimehost/simtransport"
+	"github.com/Starktomy/vowifi-go/runtimehost/carrier"
+	"github.com/Starktomy/vowifi-go/runtimehost/simauth"
+	"github.com/Starktomy/vowifi-go/runtimehost/simtransport"
 )
 
 type isimTransportFake struct {

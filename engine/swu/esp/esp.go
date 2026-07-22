@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/boa-z/vowifi-go/engine/swu/ikev2"
+	"github.com/Starktomy/vowifi-go/engine/swu/ikev2"
 )
 
 const (

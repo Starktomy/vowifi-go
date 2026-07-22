@@ -9,8 +9,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/boa-z/vowifi-go/engine/sim"
-	"github.com/boa-z/vowifi-go/engine/swu/eapaka"
+	"github.com/Starktomy/vowifi-go/engine/sim"
+	"github.com/Starktomy/vowifi-go/engine/swu/eapaka"
 )
 
 var (

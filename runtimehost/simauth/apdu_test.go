@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	swusim "github.com/boa-z/vowifi-go/engine/sim"
-	"github.com/boa-z/vowifi-go/runtimehost/simtransport"
+	swusim "github.com/Starktomy/vowifi-go/engine/sim"
+	"github.com/Starktomy/vowifi-go/runtimehost/simtransport"
 )
 
 type fakeTransport struct {

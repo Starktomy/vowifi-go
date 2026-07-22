@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boa-z/vowifi-go/engine/sim"
+	"github.com/Starktomy/vowifi-go/engine/sim"
 )
 
 func TestParseWWWAuthenticate(t *testing.T) {

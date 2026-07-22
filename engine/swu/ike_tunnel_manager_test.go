@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boa-z/vowifi-go/engine/sim"
-	"github.com/boa-z/vowifi-go/engine/swu/eapaka"
-	"github.com/boa-z/vowifi-go/engine/swu/ikev2"
+	"github.com/Starktomy/vowifi-go/engine/sim"
+	"github.com/Starktomy/vowifi-go/engine/swu/eapaka"
+	"github.com/Starktomy/vowifi-go/engine/swu/ikev2"
 )
 
 func TestIKEPacketTunnelManagerEstablishesPacketSession(t *testing.T) {

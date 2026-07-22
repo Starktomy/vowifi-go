@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/boa-z/vowifi-go/engine/swu/ikev2"
+	"github.com/Starktomy/vowifi-go/engine/swu/ikev2"
 )
 
 var ErrInvalidXFRMConfig = errors.New("invalid swu xfrm config")

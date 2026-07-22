@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/boa-z/vowifi-go/engine/swu/ikev2"
+	"github.com/Starktomy/vowifi-go/engine/swu/ikev2"
 )
 
 var ErrInvalidIKEControl = errors.New("invalid swu ike control")

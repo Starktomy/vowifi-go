@@ -17,10 +17,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boa-z/vowifi-go/engine/sim"
-	"github.com/boa-z/vowifi-go/engine/swu"
-	"github.com/boa-z/vowifi-go/engine/swu/eapaka"
-	"github.com/boa-z/vowifi-go/runtimehost/carrier"
+	"github.com/Starktomy/vowifi-go/engine/sim"
+	"github.com/Starktomy/vowifi-go/engine/swu"
+	"github.com/Starktomy/vowifi-go/engine/swu/eapaka"
+	"github.com/Starktomy/vowifi-go/runtimehost/carrier"
 )
 
 var (

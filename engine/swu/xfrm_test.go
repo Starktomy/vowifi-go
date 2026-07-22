@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/boa-z/vowifi-go/engine/swu/ikev2"
+	"github.com/Starktomy/vowifi-go/engine/swu/ikev2"
 )
 
 func TestLinuxXFRMManagerApplyAndCleanup(t *testing.T) {

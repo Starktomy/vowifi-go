@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boa-z/vowifi-go/engine/sim"
-	"github.com/boa-z/vowifi-go/runtimehost/carrier"
-	"github.com/boa-z/vowifi-go/runtimehost/voiceclient"
+	"github.com/Starktomy/vowifi-go/engine/sim"
+	"github.com/Starktomy/vowifi-go/runtimehost/carrier"
+	"github.com/Starktomy/vowifi-go/runtimehost/voiceclient"
 )
 
 func TestStartEmergencyAddressUpdateAnswersHTTPDigestAKAChallenge(t *testing.T) {

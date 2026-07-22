@@ -12,7 +12,7 @@ import (
 	"hash"
 	"strings"
 
-	"github.com/boa-z/vowifi-go/engine/sim"
+	"github.com/Starktomy/vowifi-go/engine/sim"
 )
 
 const (
