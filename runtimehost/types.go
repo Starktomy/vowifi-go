@@ -12,6 +12,8 @@ import (
 
 	swusim "github.com/Starktomy/vowifi-go/engine/sim"
 	"github.com/Starktomy/vowifi-go/engine/swu"
+	"github.com/Starktomy/vowifi-go/engine/swu/ikev2"
+	"github.com/Starktomy/vowifi-go/runtimehost/diag"
 	"github.com/Starktomy/vowifi-go/runtimehost/eventhost"
 	"github.com/Starktomy/vowifi-go/runtimehost/identity"
 	"github.com/Starktomy/vowifi-go/runtimehost/messaging"
@@ -41,7 +43,15 @@ func WithTraceID(ctx context.Context, traceID string) context.Context {
 	return context.WithValue(ctx, traceIDKey, strings.TrimSpace(traceID))
 }
 
-func SetLogger(any) {}
+// SetLogger installs a logger sink for diagnostic messages emitted by the
+// runtime host and the embedded SWU IKEv2 implementation. Internally
+// delegates to runtimehost/diag so IKEv2 (which already imports runtimehost)
+// can avoid an import cycle by calling diag.SetLogger/diag.Log directly.
+//
+// Thread-safe; safe to call once at startup.
+func SetLogger(sink diag.LogSink) {
+	diag.SetLogger(sink)
+}
 
 type Phase string
 
@@ -565,6 +575,10 @@ type StartRequest struct {
 	Access                     ModemAccess
 	Dataplane                  DataplanePolicy
 	Proxy                      *ProxyConfig
+	// ResponderID is the ePDG identity (IDr) sent in the first IKE_AUTH request.
+	// Empty Type means omit IDr (legacy behaviour). See ikev2.FullAuthConfig.
+	ResponderID                ikev2.Identity
+	APN                        string
 	EAPReauthentication        swu.EAPReauthenticationState
 	OnEAPReauthenticationState func(swu.EAPReauthenticationState)
 	TunnelManager              swu.TunnelManager
@@ -2190,6 +2204,7 @@ func defaultTunnelManagerForStart(req StartRequest) (swu.TunnelManager, error) {
 		SIM:                     req.SIM,
 		Reauthentication:        req.EAPReauthentication,
 		OnReauthenticationState: req.OnEAPReauthenticationState,
+		ResponderID:             req.ResponderID,
 	}
 	if strings.TrimSpace(req.Dataplane.Mode) == swu.DataplaneModeKernel {
 		return swu.NewIKEPacketTunnelManager(ikeCfg), nil

@@ -11,6 +11,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/Starktomy/vowifi-go/runtimehost/diag"
 )
 
 const (
@@ -176,12 +178,14 @@ func RunIKE_SA_INIT(ctx context.Context, cfg InitConfig) (InitResult, error) {
 		req, reqBytes, resp, respBytes, err := runIKESAInitRequest(ctx, cfg.Transport, spiI, payloads)
 		if err != nil {
 			if altGroup, ok, errAlt := InvalidKEPayloadAlternativeGroupFromError(err); errAlt == nil && ok {
+				diag.Log("info", fmt.Sprintf("ikev2 SA_INIT retry DH group %d (suggested by ePDG)", altGroup))
 				dhGroupID = altGroup
 				lastErr = err
 				continue
 			}
 			return InitResult{}, err
 		}
+		diag.Log("info", fmt.Sprintf("ikev2 SA_INIT response: %d bytes, payloads=%d, dh=%d", len(respBytes), len(resp.Payloads), dhGroupID))
 		parsed, err := parseInitResponse(resp, spiI)
 		if err != nil {
 			return InitResult{}, err

@@ -11,6 +11,7 @@ import (
 
 	"github.com/Starktomy/vowifi-go/engine/sim"
 	"github.com/Starktomy/vowifi-go/engine/swu/eapaka"
+	"github.com/Starktomy/vowifi-go/runtimehost/diag"
 )
 
 var (
@@ -204,6 +205,7 @@ func RunIKE_AUTH_EAPIdentity(ctx context.Context, cfg AuthConfig) (AuthResult, e
 	if err != nil {
 		return AuthResult{}, err
 	}
+	diag.Log("info", fmt.Sprintf("ikev2 IKE_AUTH initial response: %d bytes", len(initialRespBytes)))
 	initialResp, initialInnerResp, err := unprotectAuthResponse(initialRespBytes, cfg.Init, keys, messageID)
 	if err != nil {
 		return AuthResult{}, err

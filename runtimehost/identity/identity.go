@@ -89,6 +89,10 @@ type PreparedSession struct {
 	IdentityIMSISource string
 	IdentityIMEISource string
 	IMSIdentity        IMSIdentityResolution
+	// APN is the access point name used for the IMS PDN. Defaults to "ims" if
+	// not set; required by 3GPP TS 24.302 §7.2.2.1 to build the IDr (ePDG
+	// identity) and as the TS_PDP context.
+	APN                string
 	Fallbacks          []FallbackMetadata
 }
 
@@ -192,6 +196,7 @@ func PrepareStart(in PrepareStartInput) (PreparedSession, error) {
 		CarrierPolicy:      policy,
 		EPDGAddr:           strings.TrimSpace(policy.IMS.EPDGFQDN),
 		PCSCFFQDNs:         append([]string(nil), policy.IMS.PCSCFFQDNs...),
+		APN:                normalizeVoWiFiAPN(policy.IMS.IMSAPN),
 		EPDGSource:         "derived",
 		IdentityIMSISource: IMSISourceProfile,
 		IdentityIMEISource: imeiSource,
@@ -777,4 +782,16 @@ func containsString(items []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// normalizeVoWiFiAPN returns the IMS PDN access point name used for IDr (ePDG
+// identity). Per 3GPP TS 24.302 §7.2.2.1 the first IKE_AUTH request must carry
+// IDr; using "ims" is the universal default and matches strongSwan / swu_ike.py
+// behaviour. Carrier policies that explicitly set IMSAPN override the default.
+func normalizeVoWiFiAPN(candidate string) string {
+	candidate = strings.TrimSpace(candidate)
+	if candidate != "" {
+		return candidate
+	}
+	return "ims"
 }
