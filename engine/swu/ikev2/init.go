@@ -3,7 +3,6 @@ package ikev2
 import (
 	"context"
 	"crypto"
-	"crypto/ecdh"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -90,6 +89,7 @@ type InitConfig struct {
 	InitiatorSPI      uint64
 	NonceI            []byte
 	X25519PrivateKey  []byte
+	DHPrivateKey      []byte
 	LocalIP           net.IP
 	LocalPort         uint16
 	RemoteIP          net.IP
@@ -141,22 +141,31 @@ func RunIKE_SA_INIT(ctx context.Context, cfg InitConfig) (InitResult, error) {
 			return InitResult{}, err
 		}
 	}
-	priv, err := x25519PrivateKey(cfg.X25519PrivateKey, random)
-	if err != nil {
-		return InitResult{}, err
-	}
-	pubI := priv.PublicKey().Bytes()
 	sa := cfg.SA
 	if len(sa.Proposals) == 0 {
 		sa = DefaultIKEProposal()
 	}
+	dhGroupID := selectedDHGroup(sa)
+	dh, err := getDHGroup(dhGroupID)
+	if err != nil {
+		return InitResult{}, err
+	}
+	privRaw := cfg.DHPrivateKey
+	if len(privRaw) == 0 && dhGroupID == DHGroupCurve25519 {
+		privRaw = cfg.X25519PrivateKey
+	}
+	priv, err := dh.GeneratePrivateKey(random, privRaw)
+	if err != nil {
+		return InitResult{}, err
+	}
+	pubI := dh.PublicKey(priv)
 	saPayload, err := SecurityAssociationPayload(sa)
 	if err != nil {
 		return InitResult{}, err
 	}
 	payloads := []Payload{
 		saPayload,
-		KeyExchangePayload(DHGroupCurve25519, pubI),
+		KeyExchangePayload(dhGroupID, pubI),
 		NoncePayload(nonceI),
 	}
 	payloads = append(payloads, initNATPayloads(cfg, spiI, 0)...)
@@ -172,13 +181,12 @@ func RunIKE_SA_INIT(ctx context.Context, cfg InitConfig) (InitResult, error) {
 	if err := ValidateSelectedSA(sa, parsed.sa); err != nil {
 		return InitResult{}, err
 	}
-	respPub, err := ecdh.X25519().NewPublicKey(parsed.keyExchange.KeyData)
-	if err != nil {
-		return InitResult{}, fmt.Errorf("%w: responder KE: %w", ErrInvalidInitResponse, err)
+	if parsed.keyExchange.DHGroup != dhGroupID {
+		return InitResult{}, fmt.Errorf("%w: mismatching DH group %d (expected %d)", ErrInvalidInitResponse, parsed.keyExchange.DHGroup, dhGroupID)
 	}
-	shared, err := priv.ECDH(respPub)
+	shared, err := dh.SharedKey(priv, parsed.keyExchange.KeyData)
 	if err != nil {
-		return InitResult{}, fmt.Errorf("%w: ECDH: %w", ErrInvalidInitResponse, err)
+		return InitResult{}, fmt.Errorf("%w: DH shared key: %w", ErrInvalidInitResponse, err)
 	}
 	profile, err := KeyMaterialProfileFromSA(parsed.sa)
 	if err != nil {
@@ -339,8 +347,8 @@ func parseInitResponse(resp Message, spiI uint64) (parsedInitResponse, error) {
 			if err != nil {
 				return parsedInitResponse{}, err
 			}
-			if ke.DHGroup != DHGroupCurve25519 {
-				return parsedInitResponse{}, fmt.Errorf("%w: unsupported DH group %d", ErrInvalidInitResponse, ke.DHGroup)
+			if ke.DHGroup == 0 {
+				return parsedInitResponse{}, fmt.Errorf("%w: missing DH group in KE", ErrInvalidInitResponse)
 			}
 			out.keyExchange = ke
 		case PayloadNonce:
@@ -418,13 +426,6 @@ func selectedPRFHash(sa SecurityAssociation) crypto.Hash {
 		}
 	}
 	return crypto.SHA256
-}
-
-func x25519PrivateKey(raw []byte, random io.Reader) (*ecdh.PrivateKey, error) {
-	if len(raw) > 0 {
-		return ecdh.X25519().NewPrivateKey(append([]byte(nil), raw...))
-	}
-	return ecdh.X25519().GenerateKey(random)
 }
 
 func randomSPI(random io.Reader) (uint64, error) {

@@ -310,10 +310,14 @@ func ClassifyNotifyAction(notify Notify) NotifyAction {
 		action.Kind = NotifyActionWaitAndRetry
 		action.Retry = true
 		action.RetryLater = true
-	case NotifyInvalidIKESPI, NotifyInternalAddressFailure, NotifyFailedCPRequired:
+	case NotifyInvalidIKESPI, NotifyInternalAddressFailure, NotifyFailedCPRequired, NotifyReactivationRequestedCause:
 		action.Kind = NotifyActionRecreateIKESA
 		action.Retry = true
 		action.RecreateIKE = true
+	case NotifyBackoffTimer:
+		action.Kind = NotifyActionWaitAndRetry
+		action.Retry = true
+		action.RetryLater = true
 	case NotifyUnacceptableAddresses, NotifyUnexpectedNATDetected, NotifyNoNATsAllowed:
 		action.Kind = NotifyActionMOBIKEAddressRecovery
 		action.Retry = true

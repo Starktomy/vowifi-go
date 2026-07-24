@@ -71,16 +71,28 @@ type SecurityAssociation struct {
 }
 
 func DefaultIKEProposal() SecurityAssociation {
-	return SecurityAssociation{Proposals: []Proposal{{
-		Number:     1,
-		ProtocolID: ProtocolIKE,
-		Transforms: []Transform{
-			{Type: TransformENCR, ID: ENCR_AES_CBC, Attributes: []TransformAttribute{KeyLengthAttribute(128)}},
-			{Type: TransformPRF, ID: PRF_HMAC_SHA2_256},
-			{Type: TransformINTEG, ID: INTEG_HMAC_SHA2_256_128},
-			{Type: TransformDHRGroup, ID: DHGroupCurve25519},
+	return SecurityAssociation{Proposals: []Proposal{
+		{
+			Number:     1,
+			ProtocolID: ProtocolIKE,
+			Transforms: []Transform{
+				{Type: TransformENCR, ID: ENCR_AES_CBC, Attributes: []TransformAttribute{KeyLengthAttribute(128)}},
+				{Type: TransformPRF, ID: PRF_HMAC_SHA2_256},
+				{Type: TransformINTEG, ID: INTEG_HMAC_SHA2_256_128},
+				{Type: TransformDHRGroup, ID: DHGroupCurve25519},
+			},
 		},
-	}}}
+		{
+			Number:     2,
+			ProtocolID: ProtocolIKE,
+			Transforms: []Transform{
+				{Type: TransformENCR, ID: ENCR_AES_CBC, Attributes: []TransformAttribute{KeyLengthAttribute(128)}},
+				{Type: TransformPRF, ID: PRF_HMAC_SHA2_256},
+				{Type: TransformINTEG, ID: INTEG_HMAC_SHA2_256_128},
+				{Type: TransformDHRGroup, ID: DHGroup2048BitMODP}, // Fallback for T-Mobile US
+			},
+		},
+	}}
 }
 
 func DefaultESPProposal(spi []byte) SecurityAssociation {

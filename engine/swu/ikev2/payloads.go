@@ -43,11 +43,14 @@ const (
 	NotifyUpdateSAAddresses          uint16 = 16400
 	NotifyCookie2                    uint16 = 16401
 	NotifyNoNATsAllowed              uint16 = 16402
+	NotifyReactivationRequestedCause uint16 = 40961
+	NotifyBackoffTimer               uint16 = 41041
 )
 
 const (
 	MaxIKECookieLength        = 64
 	DHGroup2048BitMODP uint16 = 14
+	DHGroup3072BitMODP uint16 = 15
 	DHGroup256BitECP   uint16 = 19
 	DHGroup384BitECP   uint16 = 20
 	DHGroup521BitECP   uint16 = 21
@@ -318,6 +321,10 @@ func NotifyTypeName(notifyType uint16) string {
 		return "COOKIE2"
 	case NotifyNoNATsAllowed:
 		return "NO_NATS_ALLOWED"
+	case NotifyReactivationRequestedCause:
+		return "REACTIVATION_REQUESTED_CAUSE"
+	case NotifyBackoffTimer:
+		return "BACKOFF_TIMER"
 	default:
 		return fmt.Sprintf("notify %d", notifyType)
 	}

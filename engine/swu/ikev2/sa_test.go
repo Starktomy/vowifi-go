@@ -12,7 +12,7 @@ func TestDefaultIKEProposalMarshalParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MarshalBinary() error = %v", err)
 	}
-	want := "0000002c010100040300000c0100000c800e00800300000802000005030000080300000c000000080400001f"
+	want := "0200002c010100040300000c0100000c800e00800300000802000005030000080300000c000000080400001f0000002c020100040300000c0100000c800e00800300000802000005030000080300000c000000080400000e"
 	if hex.EncodeToString(body) != want {
 		t.Fatalf("SA body=%x, want %s", body, want)
 	}
@@ -20,7 +20,7 @@ func TestDefaultIKEProposalMarshalParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseSecurityAssociation() error = %v", err)
 	}
-	if len(parsed.Proposals) != 1 || len(parsed.Proposals[0].Transforms) != 4 {
+	if len(parsed.Proposals) != 2 || len(parsed.Proposals[0].Transforms) != 4 || len(parsed.Proposals[1].Transforms) != 4 {
 		t.Fatalf("parsed=%+v", parsed)
 	}
 	encr := parsed.Proposals[0].Transforms[0]
@@ -66,6 +66,7 @@ func TestValidateSelectedSAAllowsOfferedESPWithResponderSPI(t *testing.T) {
 func TestValidateSelectedSARejectsUnofferedIKETransform(t *testing.T) {
 	offered := DefaultIKEProposal()
 	selected := DefaultIKEProposal()
+	selected.Proposals = selected.Proposals[:1]
 	selected.Proposals[0].Transforms[1].ID = PRF_HMAC_SHA2_512
 	err := ValidateSelectedSA(offered, selected)
 	if !errors.Is(err, ErrUnsupportedSASelection) {
@@ -120,6 +121,7 @@ func TestValidateSelectedSARejectsAESGCMIKEWithINTEG(t *testing.T) {
 func TestValidateSelectedSARejectsMissingRequiredTransforms(t *testing.T) {
 	offeredIKE := DefaultIKEProposal()
 	selectedIKE := DefaultIKEProposal()
+	selectedIKE.Proposals = selectedIKE.Proposals[:1]
 	selectedIKE.Proposals[0].Transforms = selectedIKE.Proposals[0].Transforms[:3]
 	if err := ValidateSelectedSA(offeredIKE, selectedIKE); !errors.Is(err, ErrUnsupportedSASelection) {
 		t.Fatalf("ValidateSelectedSA(IKE missing DH) err=%v, want ErrUnsupportedSASelection", err)

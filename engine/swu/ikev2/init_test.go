@@ -41,8 +41,14 @@ func (f *initFakeTransport) ExchangeIKE(ctx context.Context, request []byte) ([]
 	if err != nil {
 		return nil, err
 	}
+	reqSA, _ := ParseSecurityAssociation(req.Payloads[0].Body)
+	respSA := reqSA
+	if len(respSA.Proposals) > 0 {
+		respSA.Proposals = respSA.Proposals[:1]
+	}
+	respSAPayload, _ := SecurityAssociationPayload(respSA)
 	payloads := []Payload{
-		req.Payloads[0],
+		respSAPayload,
 		KeyExchangePayload(DHGroupCurve25519, privR.PublicKey().Bytes()),
 		NoncePayload(f.nonceR),
 	}
@@ -194,6 +200,12 @@ func TestRunIKESAInitRetriesWithCookieNotify(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
+			reqSA, _ := ParseSecurityAssociation(req.Payloads[1].Body)
+			respSA := reqSA
+			if len(respSA.Proposals) > 0 {
+				respSA.Proposals = respSA.Proposals[:1]
+			}
+			respSAPayload, _ := SecurityAssociationPayload(respSA)
 			resp := Message{
 				Header: Header{
 					InitiatorSPI: req.Header.InitiatorSPI,
@@ -202,7 +214,7 @@ func TestRunIKESAInitRetriesWithCookieNotify(t *testing.T) {
 					Flags:        FlagResponse,
 				},
 				Payloads: []Payload{
-					req.Payloads[1],
+					respSAPayload,
 					KeyExchangePayload(DHGroupCurve25519, privR.PublicKey().Bytes()),
 					NoncePayload(nonceR),
 					MOBIKESupportedNotify(),
