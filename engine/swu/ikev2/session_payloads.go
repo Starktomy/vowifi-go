@@ -32,6 +32,11 @@ const (
 	ConfigInternalIPv4Subnet    uint16 = 13
 	ConfigSupportedAttributes   uint16 = 14
 	ConfigInternalIPv6Subnet    uint16 = 15
+	// P-CSCF IP attributes per IKEv2 CFG (RFC 4306 §3.15 / 7296 §3.15). Required by
+	// 3GPP TS 24.302 §7.2.2.1 for VoWiFi — without these in CFG_REQUEST the ePDG
+	// does not return a P-CSCF and IMS registration has no SIP server.
+	ConfigPCSCFIPv4Address     uint16 = 20
+	ConfigPCSCFIPv6Address     uint16 = 21
 )
 
 const (
@@ -143,12 +148,18 @@ func ConfigurationPayload(c Configuration) (Payload, error) {
 	return Payload{Type: PayloadCP, Body: body}, nil
 }
 
+// SWuConfigurationRequest is the CFG_REQUEST sent in the first IKE_AUTH request.
+// Per 3GPP TS 24.302 §7.2.2.1 the UE MUST request P-CSCF IP(s) — without it the
+// ePDG won't return a P-CSCF and IMS registration has nowhere to go. We always
+// ask for v4+v6 P-CSCF: the ePDG picks based on its own PDN/address-family policy.
 func SWuConfigurationRequest() Configuration {
 	return Configuration{Type: CFGRequest, Attributes: []ConfigurationAttribute{
 		{Type: ConfigInternalIPv4Address},
 		{Type: ConfigInternalIPv4DNS},
+		{Type: ConfigPCSCFIPv4Address},
 		{Type: ConfigInternalIPv6Address},
 		{Type: ConfigInternalIPv6DNS},
+		{Type: ConfigPCSCFIPv6Address},
 	}}
 }
 

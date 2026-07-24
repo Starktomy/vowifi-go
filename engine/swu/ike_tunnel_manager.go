@@ -64,6 +64,10 @@ type IKEPacketTunnelManagerConfig struct {
 	OnReauthenticationState  func(EAPReauthenticationState)
 	ReauthenticationLifetime time.Duration
 	InitiatorID              ikev2.Identity
+	// ResponderID is the ePDG identity (IDr) sent in the first IKE_AUTH request.
+	// Empty Type means the IKE_AUTH request omits IDr (legacy / T-Mobile-compatible
+	// behaviour; some ePDGs reject with INVALID_SYNTAX).
+	ResponderID              ikev2.Identity
 	IKETransportFactory      IKETransportFactory
 	ESPTransportFactory      IKEESPTransportFactory
 	InitRunner               IKEInitRunner
@@ -177,6 +181,7 @@ func (m *IKEPacketTunnelManager) EstablishTunnel(ctx context.Context, cfg Tunnel
 		SIM:                provider,
 		EAPKeys:            reauth.Keys,
 		InitiatorID:        initiatorID,
+		ResponderID:        m.Config.ResponderID,
 		EAPIdentity:        identity,
 		EAPPseudonym:       reauth.NextPseudonym,
 		EAPReauthIdentity:  reauth.Identity,

@@ -28,6 +28,9 @@ type AuthConfig struct {
 	Init              InitResult
 	Keys              IKEKeys
 	InitiatorID       Identity
+	// ResponderID is the ePDG identity (IDr) sent in the first IKE_AUTH request.
+	// See FullAuthConfig.ResponderID for details. Empty Type means "omit IDr".
+	ResponderID       Identity
 	EAPIdentity       string
 	EAPPseudonym      string
 	EAPReauthIdentity string
@@ -109,6 +112,12 @@ type FullAuthConfig struct {
 	SIM                sim.AKAProvider
 	EAPKeys            eapaka.Keys
 	InitiatorID        Identity
+	// ResponderID is the ePDG identity (IDr). Per 3GPP TS 24.302 §7.2.2.1 the first
+	// IKE_AUTH request must carry IDr so the ePDG can pick its certificate/key for
+	// AUTH. Typical values: APN (e.g. "ims") or APN-FQDN
+	// ("ims.apn.epc.mnc<MNC3>.mcc<MCC3>.pub.3gppnetwork.org"). If empty the
+	// IKE_AUTH request omits IDr and many ePDGs reject with INVALID_SYNTAX.
+	ResponderID        Identity
 	EAPIdentity        string
 	EAPPseudonym       string
 	EAPReauthIdentity  string
@@ -896,6 +905,17 @@ func BuildIKEAuthInitialPayloads(cfg AuthConfig) ([]Payload, error) {
 	if err != nil {
 		return nil, err
 	}
+	payloads := []Payload{idPayload}
+	// IDr (ePDG identity) — TS 24.302 §7.2.2.1 mandates it as the second payload of
+	// the first IKE_AUTH request so the ePDG knows which cert/key to use for AUTH.
+	// Omitting it trips INVALID_SYNTAX on T-Mobile US (and most TS-compliant ePDGs).
+	if cfg.ResponderID.Type != 0 {
+		idrPayload, err := IdentityPayload(PayloadIDr, cfg.ResponderID)
+		if err != nil {
+			return nil, err
+		}
+		payloads = append(payloads, idrPayload)
+	}
 	childSA := cfg.ChildSA
 	if len(childSA.Proposals) == 0 {
 		spi := append([]byte(nil), cfg.ChildSPI...)
@@ -939,7 +959,7 @@ func BuildIKEAuthInitialPayloads(cfg AuthConfig) ([]Payload, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []Payload{idPayload, cfgPayload, saPayload, tsiPayload, tsrPayload}, nil
+	return append(payloads, []Payload{cfgPayload, saPayload, tsiPayload, tsrPayload}...), nil
 }
 
 func authHeader(init InitResult, messageID uint32, fromInitiator bool) Header {
