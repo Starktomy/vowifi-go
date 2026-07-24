@@ -645,3 +645,31 @@ func appendUint64(dst []byte, v uint64) []byte {
 	binary.BigEndian.PutUint64(b[:], v)
 	return append(dst, b[:]...)
 }
+
+const AuthMethodSharedKeyMAC uint8 = 2
+
+type AuthPayloadBody struct {
+	AuthenticationMethod uint8
+	AuthenticationData   []byte
+}
+
+func AuthPayload(method uint8, data []byte) (Payload, error) {
+	if len(data) > 65535 {
+		return Payload{}, fmt.Errorf("%w: AUTH data too large", ErrInvalidLength)
+	}
+	body := make([]byte, 4+len(data))
+	body[0] = method
+	// 3 bytes reserved (0)
+	copy(body[4:], data)
+	return Payload{Type: PayloadAUTH, Body: body}, nil
+}
+
+func ParseAuthPayload(data []byte) (AuthPayloadBody, error) {
+	if len(data) < 4 {
+		return AuthPayloadBody{}, fmt.Errorf("%w: AUTH %d < 4", ErrInvalidLength, len(data))
+	}
+	return AuthPayloadBody{
+		AuthenticationMethod: data[0],
+		AuthenticationData:   append([]byte(nil), data[4:]...),
+	}, nil
+}

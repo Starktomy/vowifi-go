@@ -264,6 +264,57 @@ func RunIKE_AUTH_EAPIdentity(ctx context.Context, cfg AuthConfig) (AuthResult, e
 	return out, nil
 }
 
+func runIKEAuthFinal(ctx context.Context, cfg FullAuthConfig, localChildSPI []byte, out *FullAuthResult, offeredChildSA SecurityAssociation, offeredTSi, offeredTSr TrafficSelectors) error {
+	keys := cfg.Keys
+	if keys.Profile.RequiredLength() == 0 {
+		keys = cfg.Init.Keys
+	}
+	idPayload, err := IdentityPayload(PayloadIDi, cfg.InitiatorID)
+	if err != nil {
+		return err
+	}
+	if len(out.EAPKeys.MSK) == 0 {
+		return fmt.Errorf("%w: missing EAP MSK for final AUTH", ErrInvalidAuthConfig)
+	}
+	authData, err := CalculateEAPAUTHPayload(keys.Profile.PRF, out.EAPKeys.MSK, keys.SKPi, cfg.Init.RequestBytes, cfg.Init.NonceR, idPayload.Body)
+	if err != nil {
+		return err
+	}
+	authPayload, err := AuthPayload(AuthMethodSharedKeyMAC, authData)
+	if err != nil {
+		return err
+	}
+	iv, err := authIV(cfg.Random, keys.Profile, nil)
+	if err != nil {
+		return err
+	}
+	_, reqBytes, err := ProtectMessage(authHeader(cfg.Init, out.NextMessageID, true), keys, true, []Payload{authPayload}, iv)
+	if err != nil {
+		return err
+	}
+	respBytes, err := cfg.Transport.ExchangeIKE(ctx, reqBytes)
+	if err != nil {
+		return err
+	}
+	_, inner, err := unprotectAuthResponse(respBytes, cfg.Init, keys, out.NextMessageID)
+	if err != nil {
+		return err
+	}
+	out.FinalResponseBytes = append([]byte(nil), respBytes...)
+	out.FinalResponseInner = clonePayloads(inner)
+	out.NextMessageID++
+
+	child, ok, err := parseChildSAIfPresent(cfg.Init, inner, localChildSPI, out.NextMessageID, offeredChildSA, offeredTSi, offeredTSr)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("%w: final IKE_AUTH response missing CHILD_SA", ErrInvalidAuthResponse)
+	}
+	out.ChildSA = &child
+	return nil
+}
+
 func RunIKE_AUTH_Full(ctx context.Context, cfg FullAuthConfig) (FullAuthResult, error) {
 	localChildSPI, err := fullAuthLocalChildSPI(cfg)
 	if err != nil {
@@ -323,7 +374,10 @@ func RunIKE_AUTH_Full(ctx context.Context, cfg FullAuthConfig) (FullAuthResult, 
 				out.ChildSA = &child
 				return out, nil
 			}
-			return out, fmt.Errorf("%w: EAP success without CHILD_SA", ErrInvalidAuthResponse)
+			if err := runIKEAuthFinal(ctx, cfg, localChildSPI, &out, offeredChildSA, offeredTSi, offeredTSr); err != nil {
+				return FullAuthResult{}, err
+			}
+			return out, nil
 		}
 		if next.Code == eapaka.CodeFailure {
 			return out, fmt.Errorf("%w: EAP failure", ErrInvalidAuthResponse)

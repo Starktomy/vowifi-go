@@ -63,3 +63,21 @@ func DeriveIKESAKeyMaterial(hash crypto.Hash, skeyseed, nonceI, nonceR []byte, s
 	seed = appendUint64(seed, spiR)
 	return PRFPlus(hash, skeyseed, seed, length)
 }
+
+func CalculateEAPAUTHPayload(hash crypto.Hash, msk, skpi, realMessage1, nonceR, idiPayloadBody []byte) ([]byte, error) {
+	macIDForI, err := PRF(hash, skpi, idiPayloadBody)
+	if err != nil {
+		return nil, err
+	}
+	signedOctets := make([]byte, 0, len(realMessage1)+len(nonceR)+len(macIDForI))
+	signedOctets = append(signedOctets, realMessage1...)
+	signedOctets = append(signedOctets, nonceR...)
+	signedOctets = append(signedOctets, macIDForI...)
+
+	keyPad := []byte("Key Pad for IKEv2")
+	sharedSecret, err := PRF(hash, msk, keyPad)
+	if err != nil {
+		return nil, err
+	}
+	return PRF(hash, sharedSecret, signedOctets)
+}

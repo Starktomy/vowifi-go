@@ -146,92 +146,102 @@ func RunIKE_SA_INIT(ctx context.Context, cfg InitConfig) (InitResult, error) {
 		sa = DefaultIKEProposal()
 	}
 	dhGroupID := selectedDHGroup(sa)
-	dh, err := getDHGroup(dhGroupID)
-	if err != nil {
-		return InitResult{}, err
-	}
-	privRaw := cfg.DHPrivateKey
-	if len(privRaw) == 0 && dhGroupID == DHGroupCurve25519 {
-		privRaw = cfg.X25519PrivateKey
-	}
-	priv, err := dh.GeneratePrivateKey(random, privRaw)
-	if err != nil {
-		return InitResult{}, err
-	}
-	pubI := dh.PublicKey(priv)
-	saPayload, err := SecurityAssociationPayload(sa)
-	if err != nil {
-		return InitResult{}, err
-	}
-	payloads := []Payload{
-		saPayload,
-		KeyExchangePayload(dhGroupID, pubI),
-		NoncePayload(nonceI),
-	}
-	payloads = append(payloads, initNATPayloads(cfg, spiI, 0)...)
-	payloads = append(payloads, MOBIKESupportedNotify())
-	req, reqBytes, resp, respBytes, err := runIKESAInitRequest(ctx, cfg.Transport, spiI, payloads)
-	if err != nil {
-		return InitResult{}, err
-	}
-	parsed, err := parseInitResponse(resp, spiI)
-	if err != nil {
-		return InitResult{}, err
-	}
-	if err := ValidateSelectedSA(sa, parsed.sa); err != nil {
-		return InitResult{}, err
-	}
-	if parsed.keyExchange.DHGroup != dhGroupID {
-		return InitResult{}, fmt.Errorf("%w: mismatching DH group %d (expected %d)", ErrInvalidInitResponse, parsed.keyExchange.DHGroup, dhGroupID)
-	}
-	shared, err := dh.SharedKey(priv, parsed.keyExchange.KeyData)
-	if err != nil {
-		return InitResult{}, fmt.Errorf("%w: DH shared key: %w", ErrInvalidInitResponse, err)
-	}
-	profile, err := KeyMaterialProfileFromSA(parsed.sa)
-	if err != nil {
-		return InitResult{}, err
-	}
-	prfHash := profile.PRF
-	skeyseed, err := SKEYSEED(prfHash, nonceI, parsed.nonceR, shared)
-	if err != nil {
-		return InitResult{}, err
-	}
-	keyMaterialLength := cfg.KeyMaterialLength
-	if keyMaterialLength <= 0 {
-		keyMaterialLength = profile.RequiredLength()
-	}
-	keyMaterial, err := DeriveIKESAKeyMaterial(prfHash, skeyseed, nonceI, parsed.nonceR, spiI, resp.Header.ResponderSPI, keyMaterialLength)
-	if err != nil {
-		return InitResult{}, err
-	}
-	var keys IKEKeys
-	if len(keyMaterial) >= profile.RequiredLength() {
-		keys, err = SplitIKEKeys(profile, keyMaterial)
+
+	var lastErr error
+	for retries := 0; retries < 2; retries++ {
+		dh, err := getDHGroup(dhGroupID)
 		if err != nil {
 			return InitResult{}, err
 		}
+		privRaw := cfg.DHPrivateKey
+		if len(privRaw) == 0 && dhGroupID == DHGroupCurve25519 {
+			privRaw = cfg.X25519PrivateKey
+		}
+		priv, err := dh.GeneratePrivateKey(random, privRaw)
+		if err != nil {
+			return InitResult{}, err
+		}
+		pubI := dh.PublicKey(priv)
+		saPayload, err := SecurityAssociationPayload(sa)
+		if err != nil {
+			return InitResult{}, err
+		}
+		payloads := []Payload{
+			saPayload,
+			KeyExchangePayload(dhGroupID, pubI),
+			NoncePayload(nonceI),
+		}
+		payloads = append(payloads, initNATPayloads(cfg, spiI, 0)...)
+		payloads = append(payloads, MOBIKESupportedNotify())
+		req, reqBytes, resp, respBytes, err := runIKESAInitRequest(ctx, cfg.Transport, spiI, payloads)
+		if err != nil {
+			if altGroup, ok, errAlt := InvalidKEPayloadAlternativeGroupFromError(err); errAlt == nil && ok {
+				dhGroupID = altGroup
+				lastErr = err
+				continue
+			}
+			return InitResult{}, err
+		}
+		parsed, err := parseInitResponse(resp, spiI)
+		if err != nil {
+			return InitResult{}, err
+		}
+		if err := ValidateSelectedSA(sa, parsed.sa); err != nil {
+			return InitResult{}, err
+		}
+		if parsed.keyExchange.DHGroup != dhGroupID {
+			return InitResult{}, fmt.Errorf("%w: mismatching DH group %d (expected %d)", ErrInvalidInitResponse, parsed.keyExchange.DHGroup, dhGroupID)
+		}
+		shared, err := dh.SharedKey(priv, parsed.keyExchange.KeyData)
+		if err != nil {
+			return InitResult{}, fmt.Errorf("%w: DH shared key: %w", ErrInvalidInitResponse, err)
+		}
+		profile, err := KeyMaterialProfileFromSA(parsed.sa)
+		if err != nil {
+			return InitResult{}, err
+		}
+		prfHash := profile.PRF
+		skeyseed, err := SKEYSEED(prfHash, nonceI, parsed.nonceR, shared)
+		if err != nil {
+			return InitResult{}, err
+		}
+		keyMaterialLength := cfg.KeyMaterialLength
+		if keyMaterialLength <= 0 {
+			keyMaterialLength = profile.RequiredLength()
+		}
+		keyMaterial, err := DeriveIKESAKeyMaterial(prfHash, skeyseed, nonceI, parsed.nonceR, spiI, resp.Header.ResponderSPI, keyMaterialLength)
+		if err != nil {
+			return InitResult{}, err
+		}
+		var keys IKEKeys
+		if len(keyMaterial) >= profile.RequiredLength() {
+			keys, err = SplitIKEKeys(profile, keyMaterial)
+			if err != nil {
+				return InitResult{}, err
+			}
+		}
+		return InitResult{
+			RequestBytes:    append([]byte(nil), reqBytes...),
+			ResponseBytes:   append([]byte(nil), respBytes...),
+			Request:         req,
+			Response:        resp,
+			SelectedSA:      parsed.sa,
+			InitiatorSPI:    spiI,
+			ResponderSPI:    resp.Header.ResponderSPI,
+			NonceI:          nonceI,
+			NonceR:          parsed.nonceR,
+			PublicKeyI:      pubI,
+			PublicKeyR:      parsed.keyExchange.KeyData,
+			SharedSecret:    shared,
+			PRF:             prfHash,
+			SKEYSEED:        skeyseed,
+			KeyMaterial:     keyMaterial,
+			Keys:            keys,
+			MOBIKESupported: parsed.mobikeSupported,
+			NATDetected:     detectNAT(parsed.notifies, spiI, resp.Header.ResponderSPI, cfg),
+		}, nil
 	}
-	return InitResult{
-		RequestBytes:    append([]byte(nil), reqBytes...),
-		ResponseBytes:   append([]byte(nil), respBytes...),
-		Request:         req,
-		Response:        resp,
-		SelectedSA:      parsed.sa,
-		InitiatorSPI:    spiI,
-		ResponderSPI:    resp.Header.ResponderSPI,
-		NonceI:          nonceI,
-		NonceR:          parsed.nonceR,
-		PublicKeyI:      pubI,
-		PublicKeyR:      parsed.keyExchange.KeyData,
-		SharedSecret:    shared,
-		PRF:             prfHash,
-		SKEYSEED:        skeyseed,
-		KeyMaterial:     keyMaterial,
-		Keys:            keys,
-		MOBIKESupported: parsed.mobikeSupported,
-		NATDetected:     detectNAT(parsed.notifies, spiI, resp.Header.ResponderSPI, cfg),
-	}, nil
+	return InitResult{}, fmt.Errorf("%w: IKE_SA_INIT failed after retries: %w", ErrInvalidInitResponse, lastErr)
 }
 
 func runIKESAInitRequest(ctx context.Context, transport InitTransport, spiI uint64, payloads []Payload) (Message, []byte, Message, []byte, error) {
